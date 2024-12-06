@@ -38,3 +38,32 @@ By increasing the guidance scale λ<sub>pix</sub> on the pixel-level LoRA module
 
 ### Comparisons with Other DM-Based SR Methods
 ![PiSA-SR](figs/comparison.png)
+
+### Citations
+If our code helps your research or work, please consider citing our paper.
+The following are BibTeX references:
+
+```
+@article{sun2024pisasr,
+  title={Pixel-level and Semantic-level Adjustable Super-resolution: A Dual-LoRA Approach},
+  author={Sun, Lingchen and Wu, Rongyuan and Ma, Zhiyuan and Liu, Shuaizheng and Yi, Qiaosi and Zhang, Lei},
+  journal={arXiv preprint arXiv:2401.00877},
+  year={2024}
+}
+```
+
+### License
+This project is released under the [Apache 2.0 license](LICENSE).
+
+### Acknowledgement
+
+### Contact
+If you have any questions, please contact: ling-chen.sun@connect.polyu.hk
+
+
+<details>
+<summary>statistics</summary>
+
+![visitors](https://visitor-badge.laobi.icu/badge?page_id=csslc/CCSR)
+
+</details>
