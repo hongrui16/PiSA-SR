@@ -47,7 +47,7 @@ The following are BibTeX references:
 @article{sun2024pisasr,
   title={Pixel-level and Semantic-level Adjustable Super-resolution: A Dual-LoRA Approach},
   author={Sun, Lingchen and Wu, Rongyuan and Ma, Zhiyuan and Liu, Shuaizheng and Yi, Qiaosi and Zhang, Lei},
-  journal={arXiv preprint arXiv:2401.00877},
+  journal={arXiv preprint arXiv:2412.03017},
   year={2024}
 }
 ```
