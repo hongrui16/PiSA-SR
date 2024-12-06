@@ -16,7 +16,7 @@
 
 ## ⏰ Update
 The code and model will be ready soon.
-- **2024.12.4**: This repo and paper are released.
+- **2024.12.4**: The paper and this repo are released.
 
 :star: If PiSA-SR is helpful to your images or projects, please help star this repo. Thanks! :hugs:
 
