@@ -31,7 +31,7 @@ The code and model will be ready soon.
 ## 😍 Visual Results
 ### Adjustable SR
 <div align="center">
-<img src="figs/adjustable.png" alt="PiSA-SR" width="300">
+<img src="figs/adjustable.png" alt="PiSA-SR" width="400">
 </div>
 
 By increasing the guidance scale λ<sub>pix</sub> on the pixel-level LoRA module, the image degradations such as noise and compression artifacts can be gradually removed; however, a too-strong λ<sub>pix</sub> will make the SR image over-smoothed. By increasing the guidance scale λ<sub>sem</sub> on the semantic-level LoRA module, the SR images will have more semantic details; nonetheless, a too-high λ<sub>sem</sub> will generate visual artifacts.
