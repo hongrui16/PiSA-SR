@@ -67,12 +67,8 @@ def pisa_sr(args):
             output_pil = wavelet_color_fix(target=output_pil, source=input_image)
 
         if resize_flag:
-            # output_pil = output_pil.resize((int(args.upscale * ori_width), int(args.upscale * ori_height)))
-            output_pil = output_pil.resize((int(ori_width), int(ori_height)))
-            input_image = input_image.resize((int(ori_width), int(ori_height)))
-        bname_lr = '_lr' + bname
+            output_pil = output_pil.resize((int(args.upscale * ori_width), int(args.upscale * ori_height)))
         output_pil.save(os.path.join(args.output_dir, bname))
-        input_image.save(os.path.join(args.output_dir, bname_lr))
 
     # Calculate the average inference time, excluding the first few for stabilization
     if len(time_records) > 3:
