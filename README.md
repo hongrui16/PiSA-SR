@@ -93,6 +93,7 @@ python test_pisasr.py \
 --lambda_pix 1.0 \
 --lambda_sem 1.0
 ```
+🛠️You can adjust `lambda_pix` and `lambda_sem` to **control the strengths of pixel-wise fidelity and semantic-level details**.
 
 We integrate [tile_diffusion](https://github.com/albarji/mixture-of-diffusers) and [tile_vae](https://github.com/pkuliyi2015/multidiffusion-upscaler-for-automatic1111/tree/main) to the [test_pisasr.py](test_pisasr.py) to save the GPU memory for inference.
 You can change the tile size and stride according to the VRAM of your device.
