@@ -105,12 +105,10 @@ python test_pisasr.py \
 --upscale 4 \
 --input_image preset/test_datasets \
 --output_dir experiments/test \
---tile_diffusion \
---tile_diffusion_size 512 \
---tile_diffusion_stride 256 \
---tile_vae \
---vae_decoder_tile_size 224 \
---vae_encoder_tile_size 1024 \
+--latent_tiled_size 96 \
+--latent_tiled_overlap 32 \
+--vae_encoder_tiled_size 1024 \
+--vae_decoder_tiled_size 224 \
 --default
 ```
 
