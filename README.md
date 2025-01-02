@@ -34,7 +34,7 @@
 [<img src="figs/realworld1.png" height="205px"/>](https://imgsli.com/MzM0NDE3) [<img src="figs/realworld3.png" height="205px"/>](https://imgsli.com/MzM0NDIz) [<img src="figs/realworld2.png" height="205px"/>](https://imgsli.com/MzM0NDIx) [<img src="figs/realworld4.png" height="205px"/>](https://imgsli.com/MzM0NDI2) 
 
 ### Demo on AIGC Enhancement
-[<img src="figs/AIGC1.png" height="213px"/>](https://imgsli.com/MzM0NDI4) [<img src="figs/AIGC2.png" height="213px"/>](https://imgsli.com/MzM0NDMx) [<img src="figs/AIGC3.png" height="213px"/>](https://imgsli.com/MzM0NDM1) [<img src="figs/AIGC4.png" height="213px"/>](https://imgsli.com/MzM0NDM0) [<img src="figs/AIGC5.png" height="213px"/>](https://imgsli.com/MzM0NDM2)
+[<img src="figs/AIGC1.png" height="205px"/>](https://imgsli.com/MzM0NDI4) [<img src="figs/AIGC2.png" height="205px"/>](https://imgsli.com/MzM0NDMx) [<img src="figs/AIGC3.png" height="205px"/>](https://imgsli.com/MzM0NDM1) [<img src="figs/AIGC4.png" height="213px"/>](https://imgsli.com/MzM0NDM0) [<img src="figs/AIGC5.png" height="213px"/>](https://imgsli.com/MzM0NDM2)
 
 ### Adjustable SR Results
 <div align="center">
