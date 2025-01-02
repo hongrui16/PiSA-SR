@@ -17,7 +17,6 @@ from peft import LoraConfig
 from peft.tuners.tuners_utils import onload_layer
 from peft.utils import _get_submodules, ModulesToSaveWrapper
 from peft.utils.other import transpose
-from basicsr.archs.arch_util import ResidualBlockNoBN
 from models.autoencoder_kl import AutoencoderKL
 from models.unet_2d_condition import UNet2DConditionModel
 
