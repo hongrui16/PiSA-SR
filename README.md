@@ -1,5 +1,6 @@
-## Pixel-level and Semantic-level Adjustable Super-resolution: A Dual-LoRA Approach
 
+<div align="center">
+<h2>Pixel-level and Semantic-level Adjustable Super-resolution: A Dual-LoRA Approach</h2>
 
 <a href='https://arxiv.org/pdf/2412.03017'><img src='https://img.shields.io/badge/Paper-Arxiv-red'></a>
 
@@ -11,11 +12,11 @@
 [Lei Zhang](https://www4.comp.polyu.edu.hk/~cslzhang)<sup>1,2</sup>
 
 <sup>1</sup>The Hong Kong Polytechnic University, <sup>2</sup>OPPO Research Institute
-
+</div>
 
 
 ## ⏰ Update
-- **2025.1.2**: The code and model are released
+- **2025.1.2**: Code and models are released.
 - **2024.12.4**: The paper and this repo are released.
 
 :star: If PiSA-SR is helpful to your images or projects, please help star this repo. Thanks! :hugs:
@@ -29,6 +30,12 @@
 
 (b) Inference procedure of PiSA-SR. During the inference stage, users can use the default setting to reconstruct the high-quality image in one-step diffusion or adjust λ<sub>pix</sub> and λ<sub>sem</sub> to control the strengths of pixel-level and semantic-level enhancement.
 ## 😍 Visual Results
+### Demo on Real-world SR
+[<img src="figs/realworld1.png" height="213px"/>](https://imgsli.com/MzM0NDE3) [<img src="figs/realworld3.png" height="213px"/>](https://imgsli.com/MzM0NDIz) [<img src="figs/realworld2.png" height="213px"/>](https://imgsli.com/MzM0NDIx) [<img src="figs/realworld4.png" height="213px"/>](https://imgsli.com/MzM0NDI2) 
+
+### Demo on AIGC Enhancement
+[<img src="figs/AIGC1.png" height="213px"/>](https://imgsli.com/MzM0NDI4) [<img src="figs/AIGC2.png" height="213px"/>](https://imgsli.com/MzM0NDMx) [<img src="figs/AIGC3.png" height="213px"/>](https://imgsli.com/MzM0NDM1) [<img src="figs/AIGC4.png" height="213px"/>](https://imgsli.com/MzM0NDM0) [<img src="figs/AIGC5.png" height="213px"/>](https://imgsli.com/MzM0NDM2)
+
 ### Adjustable SR Results
 <div align="center">
 <img src="figs/fig1_github.png" alt="PiSA-SR" width="800">
@@ -38,6 +45,54 @@ By increasing the guidance scale λ<sub>pix</sub> on the pixel-level LoRA module
 
 ### Comparisons with Other DM-Based SR Methods
 ![PiSA-SR](figs/comparison.png)
+
+## ⚙ Dependencies and Installation
+```shell
+## git clone this repository
+git clone https://github.com/csslc/PiSA-SR
+cd PiSA-SR
+
+
+# create an environment
+conda create -n PiSA-SR python=3.10
+conda activate PiSA-SR
+pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+## 🍭 Quick Inference
+#### Step 1: Download the pretrained models
+- Download the pretrained SD-2.1-base models from [HuggingFace](https://huggingface.co/stabilityai/stable-diffusion-2-1-base).
+- Download the PiSA-SR model from [`GoogleDrive`](https://drive.google.com/drive/folders/1oLetijWNd59xwJE5oU-eXylQBifxWdss) or [`BaiduNetdisk(pwd: pisa)`](https://pan.baidu.com/s/1wcMVp9vmsDrLnK0yTAH2Ig) and put the models in the `preset/models`:
+
+#### Step 2: Prepare testing data
+You can put the testing images in the `preset/test_datasets`.
+
+#### Step 3: Running testing command 
+For default setting:
+```
+python test_pisasr.py \
+--pretrained_model_path preset/models/stable-diffusion-2-1-base \
+--pretrained_path preset/models/pisa_sr.pkl \
+--process_size 512 \
+--upscale 4 \
+--input_image preset/test_datasets \
+--output_dir experiments/test \
+--default
+```
+
+For adjustable setting:
+```
+python test_pisasr.py \
+--pretrained_model_path preset/models/stable-diffusion-2-1-base \
+--pretrained_path preset/models/pisa_sr.pkl \
+--process_size 512 \
+--upscale 4 \
+--input_image preset/test_datasets \
+--output_dir experiments/test \
+--lambda_pix 1.0 \
+--lambda_sem 1.0
+```
 
 ### Citations
 If our code helps your research or work, please consider citing our paper.
