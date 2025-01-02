@@ -37,9 +37,9 @@
 [<img src="figs/AIGC1.png" height="205px"/>](https://imgsli.com/MzM0NDI4) [<img src="figs/AIGC2.png" height="205px"/>](https://imgsli.com/MzM0NDMx) [<img src="figs/AIGC3.png" height="205px"/>](https://imgsli.com/MzM0NDM1) [<img src="figs/AIGC4.png" height="213px"/>](https://imgsli.com/MzM0NDM0) [<img src="figs/AIGC5.png" height="213px"/>](https://imgsli.com/MzM0NDM2)
 
 ### Adjustable SR Results
-<div align="center">
+
 <img src="figs/fig1_github.png" alt="PiSA-SR" width="700">
-</div>
+
 
 By increasing the guidance scale λ<sub>pix</sub> on the pixel-level LoRA module, the image degradations such as noise and compression artifacts can be gradually removed; however, a too-strong λ<sub>pix</sub> will make the SR image over-smoothed. By increasing the guidance scale λ<sub>sem</sub> on the semantic-level LoRA module, the SR images will have more semantic details; nonetheless, a too-high λ<sub>sem</sub> will generate visual artifacts.
 
