@@ -94,6 +94,26 @@ python test_pisasr.py \
 --lambda_sem 1.0
 ```
 
+We integrate [tile_diffusion](https://github.com/albarji/mixture-of-diffusers) and [tile_vae](https://github.com/pkuliyi2015/multidiffusion-upscaler-for-automatic1111/tree/main) to the [test_pisasr.py](test_pisasr.py) to save the GPU memory for inference.
+You can change the tile size and stride according to the VRAM of your device.
+
+```
+python test_pisasr.py \
+--pretrained_model_path preset/models/stable-diffusion-2-1-base \
+--pretrained_path preset/models/pisa_sr.pkl \
+--process_size 512 \
+--upscale 4 \
+--input_image preset/test_datasets \
+--output_dir experiments/test \
+--tile_diffusion \
+--tile_diffusion_size 512 \
+--tile_diffusion_stride 256 \
+--tile_vae \
+--vae_decoder_tile_size 224 \
+--vae_encoder_tile_size 1024 \
+--default
+```
+
 ### Citations
 If our code helps your research or work, please consider citing our paper.
 The following are BibTeX references:
