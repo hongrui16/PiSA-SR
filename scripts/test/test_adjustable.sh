@@ -7,4 +7,4 @@ python test_pisasr.py \
 --input_image preset/test_datasets \
 --output_dir experiments/test \
 --lambda_pix 1.0 \
---lambda_sem 1.0 \
+--lambda_sem 1.0
