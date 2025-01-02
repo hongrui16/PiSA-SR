@@ -31,14 +31,14 @@
 (b) Inference procedure of PiSA-SR. During the inference stage, users can use the default setting to reconstruct the high-quality image in one-step diffusion or adjust λ<sub>pix</sub> and λ<sub>sem</sub> to control the strengths of pixel-level and semantic-level enhancement.
 ## 😍 Visual Results
 ### Demo on Real-world SR
-[<img src="figs/realworld1.png" height="210px"/>](https://imgsli.com/MzM0NDE3) [<img src="figs/realworld3.png" height="210px"/>](https://imgsli.com/MzM0NDIz) [<img src="figs/realworld2.png" height="210px"/>](https://imgsli.com/MzM0NDIx) [<img src="figs/realworld4.png" height="210px"/>](https://imgsli.com/MzM0NDI2) 
+[<img src="figs/realworld1.png" height="205px"/>](https://imgsli.com/MzM0NDE3) [<img src="figs/realworld3.png" height="205px"/>](https://imgsli.com/MzM0NDIz) [<img src="figs/realworld2.png" height="205px"/>](https://imgsli.com/MzM0NDIx) [<img src="figs/realworld4.png" height="205px"/>](https://imgsli.com/MzM0NDI2) 
 
 ### Demo on AIGC Enhancement
 [<img src="figs/AIGC1.png" height="213px"/>](https://imgsli.com/MzM0NDI4) [<img src="figs/AIGC2.png" height="213px"/>](https://imgsli.com/MzM0NDMx) [<img src="figs/AIGC3.png" height="213px"/>](https://imgsli.com/MzM0NDM1) [<img src="figs/AIGC4.png" height="213px"/>](https://imgsli.com/MzM0NDM0) [<img src="figs/AIGC5.png" height="213px"/>](https://imgsli.com/MzM0NDM2)
 
 ### Adjustable SR Results
 <div align="center">
-<img src="figs/fig1_github.png" alt="PiSA-SR" width="800">
+<img src="figs/fig1_github.png" alt="PiSA-SR" width="700">
 </div>
 
 By increasing the guidance scale λ<sub>pix</sub> on the pixel-level LoRA module, the image degradations such as noise and compression artifacts can be gradually removed; however, a too-strong λ<sub>pix</sub> will make the SR image over-smoothed. By increasing the guidance scale λ<sub>sem</sub> on the semantic-level LoRA module, the SR images will have more semantic details; nonetheless, a too-high λ<sub>sem</sub> will generate visual artifacts.
