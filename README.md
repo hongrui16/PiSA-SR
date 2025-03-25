@@ -2,7 +2,10 @@
 <div align="center">
 <h2>Pixel-level and Semantic-level Adjustable Super-resolution: A Dual-LoRA Approach</h2>
 
+🚩 Accepted by CVPR2025
+
 <a href='https://arxiv.org/pdf/2412.03017'><img src='https://img.shields.io/badge/Paper-Arxiv-red'></a>
+
 
 [Lingchen Sun](https://scholar.google.com/citations?hl=zh-CN&tzom=-480&user=ZCDjTn8AAAAJ)<sup>1,2</sup>
 | [Rongyuan Wu](https://scholar.google.com/citations?user=A-U8zE8AAAAJ&hl=zh-CN)<sup>1,2</sup> | 
@@ -16,6 +19,7 @@
 
 
 ## ⏰ Update
+- **2025.3.25**: Training code is released.
 - **2025.1.2**: Code and models are released.
 - **2024.12.4**: The paper and this repo are released.
 
@@ -113,6 +117,54 @@ python test_pisasr.py \
 --default
 ```
 
+## 🚋 Train 
+#### Step1: Prepare training data
+Generate txt file for the training set.
+  Fill in the required information in [get_path](scripts/get_path.py) and run, then you can obtain the txt file recording the paths of ground-truth images. 
+  You can save the txt file into `preset/gt_path.txt`.
+  The high-quality ground-truth images can be selected from your training dataset, and the txt file can be saved in `preset/gt_selected_path`. 
+
+#### Step2: Train Model
+1. Download pretrained [Stable Diffusion v2.1](https://huggingface.co/stabilityai/stable-diffusion-2-1-base) to provide generative capabilities.
+
+    ```shell
+    wget https://huggingface.co/stabilityai/stable-diffusion-2-1-base/resolve/main/v2-1_512-ema-pruned.ckpt --no-check-certificate
+    ```
+
+2. Download [RAM](https://huggingface.co/spaces/xinyu1205/recognize-anything/blob/main/ram_swin_large_14m.pth) model for extracting text prompt, and put the model into `src/ram_pretrain_model`.
+
+3. Start training.
+    ```shell
+   CUDA_VISIBLE_DEVICES="0,1,2,3," accelerate launch train_pisasr.py \
+    --pretrained_model_path="preset/models/stable-diffusion-2-1-base" \
+    --pretrained_model_path_csd="preset/models/stable-diffusion-2-1-base" \
+    --dataset_txt_paths="preset/gt_path.txt" \
+    --highquality_dataset_txt_paths="preset/gt_selected_path.txt" \
+    --dataset_test_folder="preset/testfolder" \
+    --learning_rate=5e-5 \
+    --train_batch_size=4 \
+    --prob=0.1 \
+    --gradient_accumulation_steps=1 \
+    --enable_xformers_memory_efficient_attention --checkpointing_steps 500 \
+    --seed 123 \
+    --output_dir="experiments/train-pisasr" \
+    --cfg_csd 7.5 \
+    --timesteps1 1 \
+    --lambda_lpips=2.0 \
+    --lambda_l2=1.0 \
+    --lambda_csd=1.0 \
+    --pix_steps=4000 \
+    --lora_rank_unet_pix=4 \
+    --lora_rank_unet_sem=4 \
+    --min_dm_step_ratio=0.02 \
+    --max_dm_step_ratio=0.5 \
+    --null_text_ratio=0.5 \
+    --align_method="adain" \
+    --deg_file_path="params.yml" \
+    --tracker_project_name "PiSASR" \
+    --is_module True
+    ```
+   
 ### Citations
 If our code helps your research or work, please consider citing our paper.
 The following are BibTeX references:
@@ -121,8 +173,8 @@ The following are BibTeX references:
 @article{sun2024pisasr,
   title={Pixel-level and Semantic-level Adjustable Super-resolution: A Dual-LoRA Approach},
   author={Sun, Lingchen and Wu, Rongyuan and Ma, Zhiyuan and Liu, Shuaizheng and Yi, Qiaosi and Zhang, Lei},
-  journal={arXiv preprint arXiv:2412.03017},
-  year={2024}
+  booktitle={Proceedings of the IEEE/CVF conference on computer vision and pattern recognition},
+  year={2025}
 }
 ```
 

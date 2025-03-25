@@ -17,11 +17,292 @@ from peft import LoraConfig
 from peft.tuners.tuners_utils import onload_layer
 from peft.utils import _get_submodules, ModulesToSaveWrapper
 from peft.utils.other import transpose
-from models.autoencoder_kl import AutoencoderKL
-from models.unet_2d_condition import UNet2DConditionModel
 
 sys.path.append(os.getcwd())
-from src.my_utils.vaehook import VAEHook, perfcount
+from src.models.autoencoder_kl import AutoencoderKL
+from src.models.unet_2d_condition import UNet2DConditionModel
+from src.my_utils.vaehook import VAEHook
+
+
+import glob
+def find_filepath(directory, filename):
+    matches = glob.glob(f"{directory}/**/{filename}", recursive=True)
+    return matches[0] if matches else None
+
+
+import yaml
+def read_yaml(file_path):
+    with open(file_path, 'r') as file:
+        data = yaml.safe_load(file)
+    return data
+
+
+def initialize_unet(rank_pix, rank_sem, return_lora_module_names=False, pretrained_model_path=None):
+    unet = UNet2DConditionModel.from_pretrained(pretrained_model_path, subfolder="unet")
+    unet.requires_grad_(False)
+    unet.train()
+
+    l_target_modules_encoder_pix, l_target_modules_decoder_pix, l_modules_others_pix = [], [], []
+    l_target_modules_encoder_sem, l_target_modules_decoder_sem, l_modules_others_sem = [], [], []
+    l_grep = ["to_k", "to_q", "to_v", "to_out.0", "conv", "conv1", "conv2", "conv_in", "conv_shortcut", "conv_out", "proj_out", "proj_in", "ff.net.2", "ff.net.0.proj"]
+    for n, p in unet.named_parameters():
+        check_flag = 0
+        if "bias" in n or "norm" in n:
+            continue
+        for pattern in l_grep:
+            if pattern in n and ("down_blocks" in n or "conv_in" in n):
+                l_target_modules_encoder_pix.append(n.replace(".weight",""))
+                l_target_modules_encoder_sem.append(n.replace(".weight",""))
+                break
+            elif pattern in n and ("up_blocks" in n or "conv_out" in n):
+                l_target_modules_decoder_pix.append(n.replace(".weight",""))
+                l_target_modules_decoder_sem.append(n.replace(".weight",""))
+                break
+            elif pattern in n:
+                l_modules_others_pix.append(n.replace(".weight",""))
+                l_modules_others_sem.append(n.replace(".weight",""))
+                break
+
+    lora_conf_encoder_pix = LoraConfig(r=rank_pix, init_lora_weights="gaussian",target_modules=l_target_modules_encoder_pix)
+    lora_conf_decoder_pix = LoraConfig(r=rank_pix, init_lora_weights="gaussian",target_modules=l_target_modules_decoder_pix)
+    lora_conf_others_pix = LoraConfig(r=rank_pix, init_lora_weights="gaussian",target_modules=l_modules_others_pix)
+    lora_conf_encoder_sem = LoraConfig(r=rank_sem, init_lora_weights="gaussian",target_modules=l_target_modules_encoder_sem)
+    lora_conf_decoder_sem = LoraConfig(r=rank_sem, init_lora_weights="gaussian",target_modules=l_target_modules_decoder_sem)
+    lora_conf_others_sem = LoraConfig(r=rank_sem, init_lora_weights="gaussian",target_modules=l_modules_others_sem)
+
+    unet.add_adapter(lora_conf_encoder_pix, adapter_name="default_encoder_pix")
+    unet.add_adapter(lora_conf_decoder_pix, adapter_name="default_decoder_pix")
+    unet.add_adapter(lora_conf_others_pix, adapter_name="default_others_pix")
+    unet.add_adapter(lora_conf_encoder_sem, adapter_name="default_encoder_sem")
+    unet.add_adapter(lora_conf_decoder_sem, adapter_name="default_decoder_sem")
+    unet.add_adapter(lora_conf_others_sem, adapter_name="default_others_sem")
+
+    if return_lora_module_names:
+        return unet, l_target_modules_encoder_pix, l_target_modules_decoder_pix, l_modules_others_pix, l_target_modules_encoder_sem, l_target_modules_decoder_sem, l_modules_others_sem
+    else:
+        return unet
+
+
+class CSDLoss(torch.nn.Module):
+    def __init__(self, args, accelerator):
+        super().__init__() 
+
+        self.tokenizer = AutoTokenizer.from_pretrained(args.pretrained_model_path_csd, subfolder="tokenizer")
+        self.sched = DDPMScheduler.from_pretrained(args.pretrained_model_path_csd, subfolder="scheduler")
+        self.args = args
+
+        weight_dtype = torch.float32
+        if accelerator.mixed_precision == "fp16":
+            weight_dtype = torch.float16
+        elif accelerator.mixed_precision == "bf16":
+            weight_dtype = torch.bfloat16
+
+        self.unet_fix = UNet2DConditionModel.from_pretrained(args.pretrained_model_path_csd, subfolder="unet")
+
+        if args.enable_xformers_memory_efficient_attention:
+            if is_xformers_available():
+                self.unet_fix.enable_xformers_memory_efficient_attention()
+            else:
+                raise ValueError("xformers is not available, please install it by running `pip install xformers`")
+
+        self.unet_fix.to(accelerator.device, dtype=weight_dtype)
+
+        self.unet_fix.requires_grad_(False)
+        self.unet_fix.eval()
+
+    def forward_latent(self, model, latents, timestep, prompt_embeds):
+        
+        noise_pred = model(
+        latents,
+        timestep=timestep,
+        encoder_hidden_states=prompt_embeds,
+        ).sample
+
+        return noise_pred
+
+    def eps_to_mu(self, scheduler, model_output, sample, timesteps):
+        alphas_cumprod = scheduler.alphas_cumprod.to(device=sample.device, dtype=sample.dtype)
+        alpha_prod_t = alphas_cumprod[timesteps]
+        while len(alpha_prod_t.shape) < len(sample.shape):
+            alpha_prod_t = alpha_prod_t.unsqueeze(-1)
+        beta_prod_t = 1 - alpha_prod_t
+        pred_original_sample = (sample - beta_prod_t ** (0.5) * model_output) / alpha_prod_t ** (0.5)
+        return pred_original_sample
+
+    def cal_csd(
+        self,
+        latents,
+        prompt_embeds,
+        negative_prompt_embeds,
+        args,
+    ):
+        bsz = latents.shape[0]
+        min_dm_step = int(self.sched.config.num_train_timesteps * args.min_dm_step_ratio)
+        max_dm_step = int(self.sched.config.num_train_timesteps * args.max_dm_step_ratio)
+
+        timestep = torch.randint(min_dm_step, max_dm_step, (bsz,), device=latents.device).long()
+        noise = torch.randn_like(latents)
+        noisy_latents = self.sched.add_noise(latents, noise, timestep)
+
+        with torch.no_grad():
+            noisy_latents_input = torch.cat([noisy_latents] * 2)
+            timestep_input = torch.cat([timestep] * 2)
+            prompt_embeds = torch.cat([negative_prompt_embeds, prompt_embeds], dim=0)
+            noise_pred = self.forward_latent(
+                self.unet_fix,
+                latents=noisy_latents_input.to(dtype=torch.float16),
+                timestep=timestep_input,
+                prompt_embeds=prompt_embeds.to(dtype=torch.float16),
+            )
+            noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
+            noise_pred = noise_pred_uncond + args.cfg_csd * (noise_pred_text - noise_pred_uncond)
+            noise_pred.to(dtype=torch.float32)
+            noise_pred_uncond.to(dtype=torch.float32)
+
+            pred_real_latents = self.eps_to_mu(self.sched, noise_pred, noisy_latents, timestep)
+            pred_fake_latents = self.eps_to_mu(self.sched, noise_pred_uncond, noisy_latents, timestep)
+            
+
+        weighting_factor = torch.abs(latents - pred_real_latents).mean(dim=[1, 2, 3], keepdim=True)
+
+        grad = (pred_fake_latents - pred_real_latents) / weighting_factor
+        loss = F.mse_loss(latents, self.stopgrad(latents - grad))
+
+        return loss
+
+    def stopgrad(self, x):
+        return x.detach()
+
+
+class PiSASR(torch.nn.Module):
+    def __init__(self, args):
+        super().__init__()
+
+        self.tokenizer = AutoTokenizer.from_pretrained(args.pretrained_model_path, subfolder="tokenizer")
+        self.text_encoder = CLIPTextModel.from_pretrained(args.pretrained_model_path, subfolder="text_encoder").cuda()
+        self.args = args
+
+        if args.resume_ckpt is None:
+            self.unet, lora_unet_modules_encoder_pix, lora_unet_modules_decoder_pix, lora_unet_others_pix, \
+                lora_unet_modules_encoder_sem, lora_unet_modules_decoder_sem, lora_unet_others_sem, =\
+                    initialize_unet(rank_pix=args.lora_rank_unet_pix, rank_sem=args.lora_rank_unet_sem, pretrained_model_path=args.pretrained_model_path, return_lora_module_names=True)
+            
+            self.lora_rank_unet_pix = args.lora_rank_unet_pix
+            self.lora_rank_unet_sem = args.lora_rank_unet_sem
+            self.lora_unet_modules_encoder_pix, self.lora_unet_modules_decoder_pix, self.lora_unet_others_pix, \
+                self.lora_unet_modules_encoder_sem, self.lora_unet_modules_decoder_sem, self.lora_unet_others_sem= \
+                lora_unet_modules_encoder_pix, lora_unet_modules_decoder_pix, lora_unet_others_pix, \
+                    lora_unet_modules_encoder_sem, lora_unet_modules_decoder_sem, lora_unet_others_sem
+        else:
+            print(f'====> resume from {args.resume_ckpt}')
+            stage1_yaml = find_filepath(args.resume_ckpt.split('/checkpoints')[0], 'hparams.yml')
+            stage1_args = read_yaml(stage1_yaml)
+            stage1_args = SimpleNamespace(**stage1_args)
+            self.unet = UNet2DConditionModel.from_pretrained(args.pretrained_model_path, subfolder="unet")
+            self.lora_rank_unet_pix = stage1_args.lora_rank_unet_pix
+            self.lora_rank_unet_sem = stage1_args.lora_rank_unet_sem
+            pisasr = torch.load(args.resume_ckpt)
+            self.load_ckpt_from_state_dict(pisasr)
+        # unet.enable_xformers_memory_efficient_attention()
+        self.unet.to("cuda")
+        self.vae_fix = AutoencoderKL.from_pretrained(args.pretrained_model_path, subfolder="vae")
+        self.vae_fix.to('cuda')
+
+        self.timesteps1 = torch.tensor([args.timesteps1], device="cuda").long()
+        self.text_encoder.requires_grad_(False)
+        self.text_encoder.eval()
+        self.vae_fix.requires_grad_(False)
+        self.vae_fix.eval()
+
+    def set_train_pix(self):
+        self.unet.train()
+        for n, _p in self.unet.named_parameters():
+            if "pix" in n:
+                _p.requires_grad = True
+            if "sem" in n:
+                _p.requires_grad = False
+    
+    def set_train_sem(self):
+        self.unet.train()
+        for n, _p in self.unet.named_parameters():
+            if "sem" in n:
+                _p.requires_grad = True
+            if "pix" in n:
+                _p.requires_grad = False
+
+    def load_ckpt_from_state_dict(self, sd):
+        # load unet lora
+        self.lora_conf_encoder_pix = LoraConfig(r=sd["lora_rank_unet_pix"], init_lora_weights="gaussian", target_modules=sd["unet_lora_encoder_modules_pix"])
+        self.lora_conf_decoder_pix = LoraConfig(r=sd["lora_rank_unet_pix"], init_lora_weights="gaussian", target_modules=sd["unet_lora_decoder_modules_pix"])
+        self.lora_conf_others_pix = LoraConfig(r=sd["lora_rank_unet_pix"], init_lora_weights="gaussian", target_modules=sd["unet_lora_others_modules_pix"])
+
+        self.lora_conf_encoder_sem = LoraConfig(r=sd["lora_rank_unet_sem"], init_lora_weights="gaussian", target_modules=sd["unet_lora_encoder_modules_sem"])
+        self.lora_conf_decoder_sem = LoraConfig(r=sd["lora_rank_unet_sem"], init_lora_weights="gaussian", target_modules=sd["unet_lora_decoder_modules_sem"])
+        self.lora_conf_others_sem = LoraConfig(r=sd["lora_rank_unet_sem"], init_lora_weights="gaussian", target_modules=sd["unet_lora_others_modules_sem"])
+
+        self.unet.add_adapter(self.lora_conf_encoder_pix, adapter_name="default_encoder_pix")
+        self.unet.add_adapter(self.lora_conf_decoder_pix, adapter_name="default_decoder_pix")
+        self.unet.add_adapter(self.lora_conf_others_pix, adapter_name="default_others_pix")
+
+        self.unet.add_adapter(self.lora_conf_encoder_sem, adapter_name="default_encoder_sem")
+        self.unet.add_adapter(self.lora_conf_decoder_sem, adapter_name="default_decoder_sem")
+        self.unet.add_adapter(self.lora_conf_others_sem, adapter_name="default_others_sem")
+
+        self.lora_unet_modules_encoder_pix, self.lora_unet_modules_decoder_pix, self.lora_unet_others_pix, \
+        self.lora_unet_modules_encoder_sem, self.lora_unet_modules_decoder_sem, self.lora_unet_others_sem= \
+        sd["unet_lora_encoder_modules_pix"], sd["unet_lora_decoder_modules_pix"], sd["unet_lora_others_modules_pix"], \
+            sd["unet_lora_encoder_modules_sem"], sd["unet_lora_decoder_modules_sem"], sd["unet_lora_others_modules_sem"]
+
+        for n, p in self.unet.named_parameters():
+            if "lora" in n:
+                p.data.copy_(sd["state_dict_unet"][n])
+
+    # Adopted from pipelines.StableDiffusionXLPipeline.encode_prompt
+    def encode_prompt(self, prompt_batch):
+        """Encode text prompts into embeddings."""
+        with torch.no_grad():
+            prompt_embeds = [
+                self.text_encoder(
+                    self.tokenizer(
+                        caption, max_length=self.tokenizer.model_max_length,
+                        padding="max_length", truncation=True, return_tensors="pt"
+                    ).input_ids.to(self.text_encoder.device)
+                )[0]
+                for caption in prompt_batch
+            ]
+        return torch.concat(prompt_embeds, dim=0)
+
+    def forward(self, c_t, c_tgt, batch=None, args=None):
+
+        bs = c_t.shape[0]
+        encoded_control = self.vae_fix.encode(c_t).latent_dist.sample() * self.vae_fix.config.scaling_factor
+        # calculate prompt_embeddings and neg_prompt_embeddings
+        prompt_embeds = self.encode_prompt(batch["prompt"])
+        neg_prompt_embeds = self.encode_prompt(batch["neg_prompt"])
+        null_prompt_embeds = self.encode_prompt(batch["null_prompt"])
+
+        if random.random() < args.null_text_ratio:
+            pos_caption_enc = null_prompt_embeds
+        else:
+            pos_caption_enc = prompt_embeds
+
+        model_pred = self.unet(encoded_control, self.timesteps1, encoder_hidden_states=pos_caption_enc.to(torch.float32),).sample
+        x_denoised = encoded_control - model_pred
+        output_image = (self.vae_fix.decode(x_denoised / self.vae_fix.config.scaling_factor).sample).clamp(-1, 1)
+
+        return output_image, x_denoised, prompt_embeds, neg_prompt_embeds
+
+
+    def save_model(self, outf):
+        sd = {}
+        sd["unet_lora_encoder_modules_pix"], sd["unet_lora_decoder_modules_pix"], sd["unet_lora_others_modules_pix"] =\
+            self.lora_unet_modules_encoder_pix, self.lora_unet_modules_decoder_pix, self.lora_unet_others_pix
+        sd["unet_lora_encoder_modules_sem"], sd["unet_lora_decoder_modules_sem"], sd["unet_lora_others_modules_sem"] =\
+            self.lora_unet_modules_encoder_sem, self.lora_unet_modules_decoder_sem, self.lora_unet_others_sem
+        sd["lora_rank_unet_pix"] = self.lora_rank_unet_pix
+        sd["lora_rank_unet_sem"] = self.lora_rank_unet_sem
+        sd["state_dict_unet"] = {k: v for k, v in self.unet.state_dict().items() if "lora" in k}
+        torch.save(sd, outf)
 
 
 class PiSASR_eval(nn.Module):
