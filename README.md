@@ -182,7 +182,7 @@ The following are BibTeX references:
 This project is released under the [Apache 2.0 license](LICENSE).
 
 ### Acknowledgement
-This project is based on [OSEDiff](https://github.com/cswry/OSEDiff). Thanks for their awesome works. 
+This project is based on [OSEDiff](https://github.com/cswry/OSEDiff). Thanks for the awesome work. 
 
 ### Contact
 If you have any questions, please contact: ling-chen.sun@connect.polyu.hk
