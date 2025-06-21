@@ -3,6 +3,11 @@ import argparse
 import numpy as np
 from PIL import Image
 import torch
+import os
+os.environ["TRANSFORMERS_NO_JAX"] = "1"
+
+from transformers import AutoTokenizer, CLIPTextModel
+
 from torchvision import transforms
 import torchvision.transforms.functional as F
 
@@ -68,7 +73,8 @@ def pisa_sr(args):
 
         if resize_flag:
             output_pil = output_pil.resize((int(args.upscale * ori_width), int(args.upscale * ori_height)))
-        output_pil.save(os.path.join(args.output_dir, bname))
+        new_name = bname.split('.')[-2] + "_PiSA-SR.png"
+        output_pil.save(os.path.join(args.output_dir, new_name))
 
     # Calculate the average inference time, excluding the first few for stabilization
     if len(time_records) > 3:
@@ -82,7 +88,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--input_image', '-i', type=str, default='preset/test_datasets', help="path to the input image")
     parser.add_argument('--output_dir', '-o', type=str, default='experiments/test', help="the directory to save the output")
-    parser.add_argument("--pretrained_model_path", type=str, default='preset/models/stable-diffusion-2-1-base')
+    parser.add_argument("--pretrained_model_path", type=str, default='stabilityai/stable-diffusion-2-1-base')
     parser.add_argument('--pretrained_path', type=str, default='preset/models/pisa_sr.pkl', help="path to a model state dict to be used")
     parser.add_argument('--seed', type=int, default=42, help="Random seed to be used")
     parser.add_argument("--process_size", type=int, default=512)
